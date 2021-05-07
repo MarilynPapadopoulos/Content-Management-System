@@ -1,0 +1,26 @@
+{
+  "name": "CMS",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "dependencies": {
+    "inquirer": "^8.0.0",
+    "mysql2": "^2.2.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MarilynPapadopoulos/Content-Management-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MarilynPapadopoulos/Content-Management-System/issues"
+  },
+  "homepage": "https://github.com/MarilynPapadopoulos/Content-Management-System#readme"
+}

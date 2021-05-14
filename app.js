@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
 const mysql = require('mysql2');
+const cTable = require('console.table');
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -9,6 +10,7 @@ const connection = mysql.createConnection({
 connection.connect(err => {
     if (err) throw err;
 })
+
 
 const promptUser = () => {
     return inquirer
@@ -20,9 +22,19 @@ const promptUser = () => {
                 choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', 'Update an employee role', 'Exit'] 
                
             }
-        ]);
+        ])
+        .then((answers) => {
+            userAnswers(answers)
+        })
+        
+        
+    
 };
-promptUser().then(answers => {
+promptUser();
+
+const userAnswers = (answers) => {
+
+
 
     if (answers.options === 'View all departments') {
         connection.query(`SELECT * FROM department`, (err, rows) => {
@@ -31,21 +43,37 @@ promptUser().then(answers => {
             promptUser();
         });
     } 
-    if (answers.options === 'View all roles') {
-        connection.query(`SELECT * FROM role`, (err, rows) => {
+    else if (answers.options === 'View all roles') {
+        connection.query(`SELECT role.id, role.title, role.salary, department.name FROM role JOIN department ON role.department_id = department.id`, (err, rows) => {
             if(err) throw err;
             console.table(rows);
             promptUser();
         });
     }       
-    if (answers.options === 'View all employees') {
-        connection.query(`SELECT * FROM employee`, (err, rows) => {
+    else if (answers.options === 'View all employees') {
+        connection.query(`SELECT 
+        employee.id, 
+        employee.first_name, 
+        employee.last_name, 
+        role.title, 
+        department.name, 
+        role.salary, 
+        CONCAT(m.first_name, " ", m.last_name) AS manager
+        FROM
+        employee
+        JOIN role
+        ON employee.role_id= role.id
+        JOIN department
+        ON role.department_id=department.id
+        LEFT JOIN employee m
+        ON m.id = employee.manager_id`,
+        (err, rows) => {
             if(err) throw err;
             console.table(rows);
             promptUser();
         });
     }      
-    if (answers.options === 'Add a department') {
+    else if (answers.options === 'Add a department') {
         addDepartment().then(({ name })  => connection.promise().query(`INSERT INTO department (name) VALUES(?)`, name))
         .then(res => { 
             console.log("works");
@@ -56,7 +84,7 @@ promptUser().then(answers => {
        })
     }
 
-    if (answers.options === 'Add a role') {
+    else if (answers.options === 'Add a role') {
         addRole().then((data) => connection.promise().query(`INSERT INTO role SET ?`, data)) 
        .then(res => { 
             console.log("works");
@@ -67,12 +95,13 @@ promptUser().then(answers => {
        })
             
     }
-    if (answers.options === 'Add an employee') {
-        addEmployee().then(connection.query(`INSERT INTO employee VALUES(?)`));
-        
-        promptUser();
+    else if (answers.options === 'Add an employee') {
+        addEmployee().then((data) => connection.promise().query(`INSERT INTO employee SET ?`, data)) 
+        .then(res => {
+            promptUser();
+        }) 
     }
-    if (answers.options === 'Update an employee role') {
+    else if (answers.options === 'Update an employee role') {
         updateEmployee().then((data) => connection.promise().query(`UPDATE employee 
         SET role_id = (?) 
         WHERE id = (?)`, [data.role_id, data.id]))
@@ -85,12 +114,12 @@ promptUser().then(answers => {
        })
     }
 
-    if (answers.options === 'Exit') {
+    else { // (answers.options === 'Exit') {
         exit();
     }
       
-});
 
+}
 
 
 const addDepartment = () => {
@@ -106,7 +135,8 @@ const addDepartment = () => {
 };
 
 const addRole = () => {
-    return inquirer
+    return connection.promise().query(`SELECT department.name AS name, department.id AS value FROM department`).then(([rows]) =>{
+        return inquirer
         .prompt([
             {
                 type: 'input',
@@ -123,9 +153,11 @@ const addRole = () => {
                 type: 'list',
                 name: 'department_id',
                 message: 'Enter the department of the role you would like to add.',
-                choices: [{name: 'Service', value: 1}, {name: 'Developer', value: 2},{name: 'Sales', value: 3}]
+                choices: rows
             }
         ])
+    } )
+    
       
 };
 const addEmployee = () => {
@@ -142,14 +174,16 @@ const addEmployee = () => {
                 message: 'Enter the last name of the employee you would like to add.'
             },
             {
-                type: 'input',
-                name: 'role',
-                message: 'Enter the role of the employee you would like to add.'
+                type: 'list',
+                name: 'role_id',
+                message: 'Enter the role of the employee you would like to add.',
+                choices: [{name: 'Service', value: 1},{name: 'Developer', value: 2},{name: 'Sales', value: 3}]
             },
             {
-                type: 'input',
-                name: 'manager',
-                message: 'Enter the manager of the employee you would like to add.'
+                type: 'list',
+                name: 'manager_id',
+                message: 'Enter the manager of the employee you would like to add.',
+                choices: [{name:'None', value: null }, {name: 'Anita Room', value: 1}, {name: 'Benny Factor', value: 2}, {name:'Jack Pott', value: 3}, {name: 'Iona Mink', value: 4}, {name:'Don Keigh', value: 5}]
             }
         ]);
 };
@@ -157,20 +191,25 @@ const updateEmployee = () => {
     return inquirer
         .prompt ([
             {
-                type: 'input',
+                type: 'list',
                 name: 'id',
-                message: 'Which employee do you want to update?'
+                message: 'Which employee do you want to update?',
+                choices: [{name: 'Anita Room', value: 1}, {name: 'Benny Factor', value: 2}, {name:'Jack Pott', value: 3}, {name: 'Iona Mink', value: 4}, {name:'Don Keigh', value: 5}]
             },
             {
-                type: 'input',
+                type: 'list',
                 name: 'role_id',
-                message: "Choose the employee's new role"
+                message: "Choose the employee's new role",
+                choices: [{name: 'Service', value: 1},{name: 'Developer', value: 2},{name: 'Sales', value: 3}]
             }
         ])
 }
+
+
 const exit = () => {
     process.exit();
 }
 
-
+// promptUser().then(answers)
+// (userAnswers(answers)).then(promptUser);
 
